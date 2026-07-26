@@ -5,17 +5,15 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: AdalmPlutoFMRadio
+# Title: Adalm-Pluto FM brodadcast: monitoring stations
+# Author: emmanuelkwakyenyantakyi
 # GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui
 from PyQt5 import QtCore
-from gnuradio import analog
-from gnuradio import audio
-from gnuradio import filter
-from gnuradio.filter import firdes
 from gnuradio import gr
+from gnuradio.filter import firdes
 from gnuradio.fft import window
 import sys
 import signal
@@ -29,12 +27,12 @@ import threading
 
 
 
-class AdalmPlutoFMRadio(gr.top_block, Qt.QWidget):
+class FM_broadcast_2_4(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "AdalmPlutoFMRadio", catch_exceptions=True)
+        gr.top_block.__init__(self, "Adalm-Pluto FM brodadcast: monitoring stations", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("AdalmPlutoFMRadio")
+        self.setWindowTitle("Adalm-Pluto FM brodadcast: monitoring stations")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -52,7 +50,7 @@ class AdalmPlutoFMRadio(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "AdalmPlutoFMRadio")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "FM_broadcast_2_4")
 
         try:
             geometry = self.settings.value("geometry")
@@ -65,25 +63,20 @@ class AdalmPlutoFMRadio(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.samp_rate = samp_rate = 2e6
-        self.RadioFrequency = RadioFrequency = 91.4e6
+        self.samp_rate = samp_rate = 7.68e6
+        self.f = f = 91.4
 
         ##################################################
         # Blocks
         ##################################################
 
-        self._RadioFrequency_range = qtgui.Range(87e6, 120e6, 100000, 91.4e6, 200)
-        self._RadioFrequency_win = qtgui.RangeWidget(self._RadioFrequency_range, self.set_RadioFrequency, "'RadioFrequency'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_layout.addWidget(self._RadioFrequency_win)
-        self.rational_resampler_xxx_0 = filter.rational_resampler_fff(
-                interpolation=48,
-                decimation=50,
-                taps=[],
-                fractional_bw=0)
-        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_f(
+        self._f_range = qtgui.Range(88, 110, 0.1, 91.4, 200)
+        self._f_win = qtgui.RangeWidget(self._f_range, self.set_f, "'f'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._f_win)
+        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
             1024, #size
             window.WIN_BLACKMAN_hARRIS, #wintype
-            0, #fc
+            (f * 1e6), #fc
             samp_rate, #bw
             "", #name
             1,
@@ -101,7 +94,6 @@ class AdalmPlutoFMRadio(gr.top_block, Qt.QWidget):
         self.qtgui_freq_sink_x_0.set_fft_window_normalized(False)
 
 
-        self.qtgui_freq_sink_x_0.set_plot_pos_half(not True)
 
         labels = ['', '', '', '', '',
             '', '', '', '', '']
@@ -123,44 +115,26 @@ class AdalmPlutoFMRadio(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.low_pass_filter_0 = filter.fir_filter_ccf(
-            8,
-            firdes.low_pass(
-                1,
-                samp_rate,
-                75e3,
-                16e3,
-                window.WIN_HAMMING,
-                6.76))
-        self.iio_pluto_source_0 = iio.fmcomms2_source_fc32('usb:0.2.5' if 'usb:0.2.5' else iio.get_pluto_uri(), [True, True], 32768)
+        self.iio_pluto_source_0 = iio.fmcomms2_source_fc32('' if '' else iio.get_pluto_uri(), [True, True], 32768)
         self.iio_pluto_source_0.set_len_tag_key('packet_len')
-        self.iio_pluto_source_0.set_frequency(int(RadioFrequency))
+        self.iio_pluto_source_0.set_frequency((int(f * 1e6)))
         self.iio_pluto_source_0.set_samplerate(int(samp_rate))
-        self.iio_pluto_source_0.set_gain_mode(0, 'manual')
-        self.iio_pluto_source_0.set_gain(0, 50)
+        self.iio_pluto_source_0.set_gain_mode(0, 'slow_attack')
+        self.iio_pluto_source_0.set_gain(0, 64)
         self.iio_pluto_source_0.set_quadrature(True)
         self.iio_pluto_source_0.set_rfdc(True)
         self.iio_pluto_source_0.set_bbdc(True)
         self.iio_pluto_source_0.set_filter_params('Auto', '', 0, 0)
-        self.audio_sink_0 = audio.sink(48000, '', True)
-        self.analog_wfm_rcv_0 = analog.wfm_rcv(
-        	quad_rate=2.5e5,
-        	audio_decimation=5,
-        )
 
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.analog_wfm_rcv_0, 0), (self.rational_resampler_xxx_0, 0))
-        self.connect((self.iio_pluto_source_0, 0), (self.low_pass_filter_0, 0))
-        self.connect((self.low_pass_filter_0, 0), (self.analog_wfm_rcv_0, 0))
-        self.connect((self.rational_resampler_xxx_0, 0), (self.audio_sink_0, 0))
-        self.connect((self.rational_resampler_xxx_0, 0), (self.qtgui_freq_sink_x_0, 0))
+        self.connect((self.iio_pluto_source_0, 0), (self.qtgui_freq_sink_x_0, 0))
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "AdalmPlutoFMRadio")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "FM_broadcast_2_4")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -173,20 +147,20 @@ class AdalmPlutoFMRadio(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.iio_pluto_source_0.set_samplerate(int(self.samp_rate))
-        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, 75e3, 16e3, window.WIN_HAMMING, 6.76))
-        self.qtgui_freq_sink_x_0.set_frequency_range(0, self.samp_rate)
+        self.qtgui_freq_sink_x_0.set_frequency_range((self.f * 1e6), self.samp_rate)
 
-    def get_RadioFrequency(self):
-        return self.RadioFrequency
+    def get_f(self):
+        return self.f
 
-    def set_RadioFrequency(self, RadioFrequency):
-        self.RadioFrequency = RadioFrequency
-        self.iio_pluto_source_0.set_frequency(int(self.RadioFrequency))
-
-
+    def set_f(self, f):
+        self.f = f
+        self.iio_pluto_source_0.set_frequency((int(self.f * 1e6)))
+        self.qtgui_freq_sink_x_0.set_frequency_range((self.f * 1e6), self.samp_rate)
 
 
-def main(top_block_cls=AdalmPlutoFMRadio, options=None):
+
+
+def main(top_block_cls=FM_broadcast_2_4, options=None):
 
     qapp = Qt.QApplication(sys.argv)
 

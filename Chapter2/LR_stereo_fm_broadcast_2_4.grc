@@ -1,6 +1,6 @@
 options:
   parameters:
-    author: ''
+    author: emmanuelkwakyenyantakyi
     catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
@@ -11,7 +11,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: AdalmPlutoFMRadio
+    id: LR_stereo_fm_broadcast_2_4
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -22,7 +22,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: AdalmPlutoFMRadio
+    title: Monitoring L+R, L-R and stereo of FM broadcast
     window_size: (1000,1000)
   states:
     bus_sink: false
@@ -33,37 +33,37 @@ options:
     state: enabled
 
 blocks:
-- name: RadioFrequency
+- name: f
   id: variable_qtgui_range
   parameters:
-    comment: Tune the frequency of the Radio
+    comment: ''
     gui_hint: ''
     label: ''
     min_len: '200'
     orient: QtCore.Qt.Horizontal
     rangeType: float
-    start: 87e6
-    step: '100000'
-    stop: 120e6
-    value: 91.4e6
+    start: '88'
+    step: '0.1'
+    stop: '110'
+    value: '95.3'
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [344, 16.0]
+    coordinate: [312, 16.0]
     rotation: 0
     state: enabled
 - name: samp_rate
   id: variable
   parameters:
     comment: ''
-    value: 2e6
+    value: 1.536e6
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [200, 12]
+    coordinate: [184, 16.0]
     rotation: 0
     state: enabled
 - name: analog_wfm_rcv_0
@@ -71,18 +71,16 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    audio_decimation: '5'
-    comment: 'Demodulate the received RF signal
-
-      Fs -> 50kHz'
+    audio_decimation: '1'
+    comment: ''
     maxoutbuf: '0'
     minoutbuf: '0'
-    quad_rate: 2.5e5
+    quad_rate: samp_rate/8
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [432, 184.0]
+    coordinate: [440, 144.0]
     rotation: 0
     state: enabled
 - name: audio_sink_0
@@ -94,13 +92,13 @@ blocks:
     device_name: ''
     num_inputs: '1'
     ok_to_block: 'True'
-    samp_rate: '48000'
+    samp_rate: int(samp_rate/8/4)
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [840, 108.0]
-    rotation: 0
+    coordinate: [232, 340.0]
+    rotation: 180
     state: enabled
 - name: iio_pluto_source_0
   id: iio_pluto_source
@@ -114,11 +112,11 @@ blocks:
     filter: ''
     filter_source: '''Auto'''
     fpass: '0'
-    frequency: int(RadioFrequency)
+    frequency: int(f * 1e6)
     fstop: '0'
-    gain1: '''manual'''
+    gain1: '''slow_attack'''
     len_tag_key: packet_len
-    manual_gain1: '50'
+    manual_gain1: '45'
     maxoutbuf: '0'
     minoutbuf: '0'
     quadrature: 'True'
@@ -130,7 +128,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [24, 136.0]
+    coordinate: [8, 124.0]
     rotation: 0
     state: enabled
 - name: low_pass_filter_0
@@ -139,8 +137,8 @@ blocks:
     affinity: ''
     alias: ''
     beta: '6.76'
-    comment: "Filter out neighboring stations. \nFs -> 250kHz"
-    cutoff_freq: 75e3
+    comment: ''
+    cutoff_freq: samp_rate/2/8
     decim: '8'
     gain: '1'
     interp: '1'
@@ -148,14 +146,38 @@ blocks:
     minoutbuf: '0'
     samp_rate: samp_rate
     type: fir_filter_ccf
-    width: 16e3
+    width: samp_rate/64
     win: window.WIN_HAMMING
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [248, 164.0]
+    coordinate: [208, 124.0]
     rotation: 0
+    state: enabled
+- name: low_pass_filter_1
+  id: low_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '6.76'
+    comment: ''
+    cutoff_freq: samp_rate/8/2/4
+    decim: '4'
+    gain: '1'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate/8
+    type: fir_filter_fff
+    width: samp_rate/8/64
+    win: window.WIN_HAMMING
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [440, 316.0]
+    rotation: 180
     state: enabled
 - name: qtgui_freq_sink_x_0
   id: qtgui_freq_sink_x
@@ -188,7 +210,7 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: '0'
+    fc: f * 1e6
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
@@ -215,7 +237,7 @@ blocks:
     tr_level: '0.0'
     tr_mode: qtgui.TRIG_MODE_FREE
     tr_tag: '""'
-    type: float
+    type: complex
     units: dB
     update_time: '0.10'
     width1: '1'
@@ -235,38 +257,78 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [832, 212.0]
+    coordinate: [208, 228.0]
     rotation: 0
     state: enabled
-- name: rational_resampler_xxx_0
-  id: rational_resampler_xxx
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
   parameters:
     affinity: ''
     alias: ''
-    comment: 'Change Fs to type acceptable by mac audio system.
-
-      Fs -> 48kHz'
-    decim: '50'
-    fbw: '0'
-    interp: '48'
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate/8
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: '0'
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
     maxoutbuf: '0'
     minoutbuf: '0'
-    taps: '[]'
-    type: fff
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: float
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [608, 176.0]
-    rotation: 0
+    coordinate: [440, 228.0]
+    rotation: 180
     state: enabled
 
 connections:
-- [analog_wfm_rcv_0, '0', rational_resampler_xxx_0, '0']
+- [analog_wfm_rcv_0, '0', low_pass_filter_1, '0']
+- [analog_wfm_rcv_0, '0', qtgui_waterfall_sink_x_0, '0']
 - [iio_pluto_source_0, '0', low_pass_filter_0, '0']
+- [iio_pluto_source_0, '0', qtgui_freq_sink_x_0, '0']
 - [low_pass_filter_0, '0', analog_wfm_rcv_0, '0']
-- [rational_resampler_xxx_0, '0', audio_sink_0, '0']
-- [rational_resampler_xxx_0, '0', qtgui_freq_sink_x_0, '0']
+- [low_pass_filter_1, '0', audio_sink_0, '0']
 
 metadata:
   file_format: 1

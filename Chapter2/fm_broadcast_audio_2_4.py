@@ -5,7 +5,8 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: Getting broadcasted messages from commercial flights
+# Title: Listening to FM radio broadcast
+# Author: emmanuelkwakyenyantakyi
 # GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
@@ -13,8 +14,6 @@ from gnuradio import qtgui
 from PyQt5 import QtCore
 from gnuradio import analog
 from gnuradio import audio
-from gnuradio import blocks
-from gnuradio import eng_notation
 from gnuradio import filter
 from gnuradio.filter import firdes
 from gnuradio import gr
@@ -24,18 +23,19 @@ import signal
 from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
+from gnuradio import eng_notation
 from gnuradio import iio
 import sip
 import threading
 
 
 
-class ACARS_2_3(gr.top_block, Qt.QWidget):
+class fm_broadcast_audio_2_4(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Getting broadcasted messages from commercial flights", catch_exceptions=True)
+        gr.top_block.__init__(self, "Listening to FM radio broadcast", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("Getting broadcasted messages from commercial flights")
+        self.setWindowTitle("Listening to FM radio broadcast")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -53,7 +53,7 @@ class ACARS_2_3(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "ACARS_2_3")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "fm_broadcast_audio_2_4")
 
         try:
             geometry = self.settings.value("geometry")
@@ -66,69 +66,66 @@ class ACARS_2_3(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.threshold = threshold = (-90)
-        self.samp_rate = samp_rate = 1.152e6
-        self.frequency = frequency = 128.550e6
-        self.Volume = Volume = 100
-        self.N = N = 8
+        self.Ndec = Ndec = 8
+        self.Naudio = Naudio = 4
+        self.samp_rate = samp_rate = 48e3 * Ndec * Naudio
+        self.f = f = 94.9
+        self.Ntaps = Ntaps = 80
 
         ##################################################
         # Blocks
         ##################################################
 
-        self._threshold_tool_bar = Qt.QToolBar(self)
-        self._threshold_tool_bar.addWidget(Qt.QLabel("'threshold'" + ": "))
-        self._threshold_line_edit = Qt.QLineEdit(str(self.threshold))
-        self._threshold_tool_bar.addWidget(self._threshold_line_edit)
-        self._threshold_line_edit.editingFinished.connect(
-            lambda: self.set_threshold(eng_notation.str_to_num(str(self._threshold_line_edit.text()))))
-        self.top_layout.addWidget(self._threshold_tool_bar)
-        self._frequency_range = qtgui.Range(110e6, 130e6, 1e3, 128.550e6, 200)
-        self._frequency_win = qtgui.RangeWidget(self._frequency_range, self.set_frequency, "'frequency'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_layout.addWidget(self._frequency_win)
-        self._Volume_range = qtgui.Range(10, 500, 1, 100, 200)
-        self._Volume_win = qtgui.RangeWidget(self._Volume_range, self.set_Volume, "'Volume'", "counter_slider", float, QtCore.Qt.Horizontal)
-        self.top_layout.addWidget(self._Volume_win)
-        self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_c(
+        self._f_range = qtgui.Range(88, 110, 0.1, 94.9, 200)
+        self._f_win = qtgui.RangeWidget(self._f_range, self.set_f, "'f'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._f_win)
+        self.qtgui_freq_sink_x_1 = qtgui.freq_sink_c(
             1024, #size
             window.WIN_BLACKMAN_hARRIS, #wintype
             0, #fc
             samp_rate, #bw
             "", #name
-            1, #number of inputs
+            1,
             None # parent
         )
-        self.qtgui_waterfall_sink_x_0.set_update_time(0.10)
-        self.qtgui_waterfall_sink_x_0.enable_grid(False)
-        self.qtgui_waterfall_sink_x_0.enable_axis_labels(True)
+        self.qtgui_freq_sink_x_1.set_update_time(0.10)
+        self.qtgui_freq_sink_x_1.set_y_axis((-140), 10)
+        self.qtgui_freq_sink_x_1.set_y_label('Relative Gain', 'dB')
+        self.qtgui_freq_sink_x_1.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
+        self.qtgui_freq_sink_x_1.enable_autoscale(False)
+        self.qtgui_freq_sink_x_1.enable_grid(False)
+        self.qtgui_freq_sink_x_1.set_fft_average(1.0)
+        self.qtgui_freq_sink_x_1.enable_axis_labels(True)
+        self.qtgui_freq_sink_x_1.enable_control_panel(False)
+        self.qtgui_freq_sink_x_1.set_fft_window_normalized(False)
 
 
 
         labels = ['', '', '', '', '',
-                  '', '', '', '', '']
-        colors = [0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0]
+            '', '', '', '', '']
+        widths = [1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1]
+        colors = ["blue", "red", "green", "black", "cyan",
+            "magenta", "yellow", "dark red", "dark green", "dark blue"]
         alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
-                  1.0, 1.0, 1.0, 1.0, 1.0]
+            1.0, 1.0, 1.0, 1.0, 1.0]
 
         for i in range(1):
             if len(labels[i]) == 0:
-                self.qtgui_waterfall_sink_x_0.set_line_label(i, "Data {0}".format(i))
+                self.qtgui_freq_sink_x_1.set_line_label(i, "Data {0}".format(i))
             else:
-                self.qtgui_waterfall_sink_x_0.set_line_label(i, labels[i])
-            self.qtgui_waterfall_sink_x_0.set_color_map(i, colors[i])
-            self.qtgui_waterfall_sink_x_0.set_line_alpha(i, alphas[i])
+                self.qtgui_freq_sink_x_1.set_line_label(i, labels[i])
+            self.qtgui_freq_sink_x_1.set_line_width(i, widths[i])
+            self.qtgui_freq_sink_x_1.set_line_color(i, colors[i])
+            self.qtgui_freq_sink_x_1.set_line_alpha(i, alphas[i])
 
-        self.qtgui_waterfall_sink_x_0.set_intensity_range(-140, 10)
-
-        self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.qwidget(), Qt.QWidget)
-
-        self.top_layout.addWidget(self._qtgui_waterfall_sink_x_0_win)
-        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
+        self._qtgui_freq_sink_x_1_win = sip.wrapinstance(self.qtgui_freq_sink_x_1.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._qtgui_freq_sink_x_1_win)
+        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_f(
             1024, #size
             window.WIN_BLACKMAN_hARRIS, #wintype
             0, #fc
-            samp_rate, #bw
+            (samp_rate/Ndec/Naudio), #bw
             "", #name
             1,
             None # parent
@@ -145,6 +142,7 @@ class ACARS_2_3(gr.top_block, Qt.QWidget):
         self.qtgui_freq_sink_x_0.set_fft_window_normalized(False)
 
 
+        self.qtgui_freq_sink_x_0.set_plot_pos_half(not True)
 
         labels = ['', '', '', '', '',
             '', '', '', '', '']
@@ -166,73 +164,66 @@ class ACARS_2_3(gr.top_block, Qt.QWidget):
 
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-        self.low_pass_filter_0_0 = filter.fir_filter_ccf(
-            1,
-            firdes.low_pass(
-                1,
-                (samp_rate/N),
-                3e3,
-                500,
-                window.WIN_HAMMING,
-                6.76))
         self.low_pass_filter_0 = filter.fir_filter_ccf(
-            N,
+            Ndec,
             firdes.low_pass(
                 1,
                 samp_rate,
-                4e3,
-                2e3,
+                (samp_rate/Ndec/2),
+                (samp_rate/Ntaps),
                 window.WIN_HAMMING,
                 6.76))
         self.iio_pluto_source_0 = iio.fmcomms2_source_fc32('usb:0.2.5' if 'usb:0.2.5' else iio.get_pluto_uri(), [True, True], 32768)
         self.iio_pluto_source_0.set_len_tag_key('packet_len')
-        self.iio_pluto_source_0.set_frequency(int(frequency))
+        self.iio_pluto_source_0.set_frequency((int(f * 1e6)))
         self.iio_pluto_source_0.set_samplerate(int(samp_rate))
         self.iio_pluto_source_0.set_gain_mode(0, 'slow_attack')
-        self.iio_pluto_source_0.set_gain(0, 50)
+        self.iio_pluto_source_0.set_gain(0, 64)
         self.iio_pluto_source_0.set_quadrature(True)
         self.iio_pluto_source_0.set_rfdc(True)
         self.iio_pluto_source_0.set_bbdc(True)
         self.iio_pluto_source_0.set_filter_params('Auto', '', 0, 0)
-        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(Volume)
-        self.audio_sink_0 = audio.sink(int(48e3), '', True)
-        self.analog_simple_squelch_cc_0 = analog.simple_squelch_cc(threshold, 0.001)
-        self.analog_am_demod_cf_1 = analog.am_demod_cf(
-        	channel_rate=(samp_rate/N),
-        	audio_decim=3,
-        	audio_pass=4000,
-        	audio_stop=5000,
+        self.audio_sink_0 = audio.sink((int(samp_rate/Ndec/Naudio)), '', True)
+        self.analog_wfm_rcv_0 = analog.wfm_rcv(
+        	quad_rate=(samp_rate/Ndec),
+        	audio_decimation=Naudio,
         )
 
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.analog_am_demod_cf_1, 0), (self.blocks_multiply_const_vxx_0, 0))
-        self.connect((self.analog_simple_squelch_cc_0, 0), (self.analog_am_demod_cf_1, 0))
-        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.analog_wfm_rcv_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.analog_wfm_rcv_0, 0), (self.qtgui_freq_sink_x_0, 0))
         self.connect((self.iio_pluto_source_0, 0), (self.low_pass_filter_0, 0))
-        self.connect((self.iio_pluto_source_0, 0), (self.qtgui_freq_sink_x_0, 0))
-        self.connect((self.iio_pluto_source_0, 0), (self.qtgui_waterfall_sink_x_0, 0))
-        self.connect((self.low_pass_filter_0, 0), (self.low_pass_filter_0_0, 0))
-        self.connect((self.low_pass_filter_0_0, 0), (self.analog_simple_squelch_cc_0, 0))
+        self.connect((self.iio_pluto_source_0, 0), (self.qtgui_freq_sink_x_1, 0))
+        self.connect((self.low_pass_filter_0, 0), (self.analog_wfm_rcv_0, 0))
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "ACARS_2_3")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "fm_broadcast_audio_2_4")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
 
         event.accept()
 
-    def get_threshold(self):
-        return self.threshold
+    def get_Ndec(self):
+        return self.Ndec
 
-    def set_threshold(self, threshold):
-        self.threshold = threshold
-        Qt.QMetaObject.invokeMethod(self._threshold_line_edit, "setText", Qt.Q_ARG("QString", eng_notation.num_to_str(self.threshold)))
-        self.analog_simple_squelch_cc_0.set_threshold(self.threshold)
+    def set_Ndec(self, Ndec):
+        self.Ndec = Ndec
+        self.set_samp_rate(48e3 * self.Ndec * self.Naudio)
+        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, (self.samp_rate/self.Ndec/2), (self.samp_rate/self.Ntaps), window.WIN_HAMMING, 6.76))
+        self.qtgui_freq_sink_x_0.set_frequency_range(0, (self.samp_rate/self.Ndec/self.Naudio))
+
+    def get_Naudio(self):
+        return self.Naudio
+
+    def set_Naudio(self, Naudio):
+        self.Naudio = Naudio
+        self.set_samp_rate(48e3 * self.Ndec * self.Naudio)
+        self.qtgui_freq_sink_x_0.set_frequency_range(0, (self.samp_rate/self.Ndec/self.Naudio))
 
     def get_samp_rate(self):
         return self.samp_rate
@@ -240,36 +231,28 @@ class ACARS_2_3(gr.top_block, Qt.QWidget):
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.iio_pluto_source_0.set_samplerate(int(self.samp_rate))
-        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, 4e3, 2e3, window.WIN_HAMMING, 6.76))
-        self.low_pass_filter_0_0.set_taps(firdes.low_pass(1, (self.samp_rate/self.N), 3e3, 500, window.WIN_HAMMING, 6.76))
-        self.qtgui_freq_sink_x_0.set_frequency_range(0, self.samp_rate)
-        self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
+        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, (self.samp_rate/self.Ndec/2), (self.samp_rate/self.Ntaps), window.WIN_HAMMING, 6.76))
+        self.qtgui_freq_sink_x_0.set_frequency_range(0, (self.samp_rate/self.Ndec/self.Naudio))
+        self.qtgui_freq_sink_x_1.set_frequency_range(0, self.samp_rate)
 
-    def get_frequency(self):
-        return self.frequency
+    def get_f(self):
+        return self.f
 
-    def set_frequency(self, frequency):
-        self.frequency = frequency
-        self.iio_pluto_source_0.set_frequency(int(self.frequency))
+    def set_f(self, f):
+        self.f = f
+        self.iio_pluto_source_0.set_frequency((int(self.f * 1e6)))
 
-    def get_Volume(self):
-        return self.Volume
+    def get_Ntaps(self):
+        return self.Ntaps
 
-    def set_Volume(self, Volume):
-        self.Volume = Volume
-        self.blocks_multiply_const_vxx_0.set_k(self.Volume)
-
-    def get_N(self):
-        return self.N
-
-    def set_N(self, N):
-        self.N = N
-        self.low_pass_filter_0_0.set_taps(firdes.low_pass(1, (self.samp_rate/self.N), 3e3, 500, window.WIN_HAMMING, 6.76))
+    def set_Ntaps(self, Ntaps):
+        self.Ntaps = Ntaps
+        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, (self.samp_rate/self.Ndec/2), (self.samp_rate/self.Ntaps), window.WIN_HAMMING, 6.76))
 
 
 
 
-def main(top_block_cls=ACARS_2_3, options=None):
+def main(top_block_cls=fm_broadcast_audio_2_4, options=None):
 
     qapp = Qt.QApplication(sys.argv)
 
