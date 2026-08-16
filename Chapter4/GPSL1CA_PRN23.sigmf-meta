@@ -1,0 +1,22 @@
+{
+  "global": {
+    "antenna:gain": 1,
+    "antenna:type": "none",
+    "core:version": "1.0.0",
+    "core:datatype": "rf32_le",
+    "core:description": "GPS L1 C/A Gold code: PRN number 23, from https://github.com/danipascual/GNSS-matlab",
+    "core:sample_rate": 1,
+    "core:author": "Jean-Michel Friedt",
+    "core:recorder": "GNU Octave",
+    "core:hw": "synthetic",
+    "core:license": "CC BY-SA"
+  },
+    "captures": [
+        {
+            "core:sample_start": 0,
+            "core:frequency": 1
+        }
+    ],
+    "annotations": []
+}
+

@@ -1,0 +1,21 @@
+{
+    "global": {
+        "core:author": "Daniel Est\u00e9vez <daniel@destevez.net>",
+        "core:datatype": "ci16",
+        "core:description": "Recording of GPS L1 signals",
+        "core:hw": "USRP B205mini",
+        "core:license": "https://creativecommons.org/licenses/by/4.0/",
+        "core:recorder": "GNU Radio 3.9",
+        "core:sample_rate": 4000000,
+        "core:sha512": "0d4f53b4a9731ac4d02b37de8321bab90f03257eb29b482baac4a7de22defcf7441083ad176fc458d5078d7d828585192655f439c0dc3d66db03da7598caadb1",
+        "core:version": "1.0.1"
+    },
+    "captures": [
+        {
+            "core:datetime": "2022-03-27T11:32:04.2147593125",
+            "core:frequency": 1575420000,
+            "core:sample_start": 0
+        }
+    ],
+    "annotations": []
+}
