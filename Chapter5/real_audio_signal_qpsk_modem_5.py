@@ -5,40 +5,38 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: Modulating and demodulation a real signal
+# Title: Transmitting and recovering real audio signal using QPSK
 # Author: emmanuelkwakyenyantakyi
 # GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
 from gnuradio import qtgui
+from PyQt5 import QtCore
 from gnuradio import analog
+from gnuradio import audio
 from gnuradio import blocks
 from gnuradio import digital
 from gnuradio import filter
-from gnuradio import fft
-from gnuradio.fft import window
-from gnuradio.filter import firdes
 from gnuradio import gr
+from gnuradio.filter import firdes
+from gnuradio.fft import window
 import sys
 import signal
 from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
-from gnuradio import iio
-import qpsk_mod_demod_real_signal_5_3_epy_block_0 as epy_block_0  # embedded python block
 import sip
 import threading
-import time
 
 
 
-class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
+class real_audio_signal_qpsk_modem_5(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Modulating and demodulation a real signal", catch_exceptions=True)
+        gr.top_block.__init__(self, "Transmitting and recovering real audio signal using QPSK", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("Modulating and demodulation a real signal")
+        self.setWindowTitle("Transmitting and recovering real audio signal using QPSK")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -56,7 +54,7 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "qpsk_mod_demod_real_signal_5_3")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "real_audio_signal_qpsk_modem_5")
 
         try:
             geometry = self.settings.value("geometry")
@@ -75,48 +73,30 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
         self.rrc_taps = rrc_taps = firdes.root_raised_cosine(nfilts, nfilts * sps, 1.0, 0.4, int(5 * sps * nfilts))
         self.my_const_qpsk = my_const_qpsk = digital.constellation_qpsk().base()
         self.my_const_qpsk.set_npwr(1.0)
-        self.computed_cfo = computed_cfo = 0
+        self.delay = delay = 0
+        self.audio_rate = audio_rate = 44.1e3
 
         ##################################################
         # Blocks
         ##################################################
 
-        self.freq_offset = blocks.probe_signal_i()
-        def _computed_cfo_probe():
-          self.flowgraph_started.wait()
-          while True:
-
-            val = self.freq_offset.level()
-            try:
-              try:
-                self.doc.add_next_tick_callback(functools.partial(self.set_computed_cfo,val))
-              except AttributeError:
-                self.set_computed_cfo(val)
-            except AttributeError:
-              pass
-            time.sleep(1.0 / (10))
-        _computed_cfo_thread = threading.Thread(target=_computed_cfo_probe)
-        _computed_cfo_thread.daemon = True
-        _computed_cfo_thread.start()
-        self.rational_resampler_xxx_0 = filter.rational_resampler_ccc(
-                interpolation=1,
-                decimation=8,
-                taps=[],
-                fractional_bw=0)
+        self._delay_range = qtgui.Range(0, 3, 1, 0, 100)
+        self._delay_win = qtgui.RangeWidget(self._delay_range, self.set_delay, "'delay'", "counter_slider", float, QtCore.Qt.Horizontal)
+        self.top_layout.addWidget(self._delay_win)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_f(
-            (int(1024/8)), #size
-            samp_rate/4, #samp_rate
-            "Demodulated signal", #name
+            1024, #size
+            audio_rate, #samp_rate
+            "", #name
             1, #number of inputs
             None # parent
         )
         self.qtgui_time_sink_x_0.set_update_time(0.10)
-        self.qtgui_time_sink_x_0.set_y_axis(-0.2, 1.2)
+        self.qtgui_time_sink_x_0.set_y_axis(-1, 1)
 
         self.qtgui_time_sink_x_0.set_y_label('Amplitude', "")
 
         self.qtgui_time_sink_x_0.enable_tags(True)
-        self.qtgui_time_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_NORM, qtgui.TRIG_SLOPE_POS, 0.5, 0, 0, "")
+        self.qtgui_time_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, qtgui.TRIG_SLOPE_POS, 0.0, 0, 0, "")
         self.qtgui_time_sink_x_0.enable_autoscale(True)
         self.qtgui_time_sink_x_0.enable_grid(False)
         self.qtgui_time_sink_x_0.enable_axis_labels(True)
@@ -153,7 +133,7 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(self._qtgui_time_sink_x_0_win)
         self.qtgui_const_sink_x_0 = qtgui.const_sink_c(
             1024, #size
-            "Constellation Diagram", #name
+            'Constellation Diagram', #name
             1, #number of inputs
             None # parent
         )
@@ -192,35 +172,16 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
 
         self._qtgui_const_sink_x_0_win = sip.wrapinstance(self.qtgui_const_sink_x_0.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_const_sink_x_0_win)
-        self.iio_pluto_source_0 = iio.fmcomms2_source_fc32('usb:0.2.5' if 'usb:0.2.5' else iio.get_pluto_uri(), [True, True], 32768)
-        self.iio_pluto_source_0.set_len_tag_key('packet_len')
-        self.iio_pluto_source_0.set_frequency((int(850e6) - computed_cfo))
-        self.iio_pluto_source_0.set_samplerate(int(samp_rate))
-        self.iio_pluto_source_0.set_gain_mode(0, 'slow_attack')
-        self.iio_pluto_source_0.set_gain(0, 30)
-        self.iio_pluto_source_0.set_quadrature(True)
-        self.iio_pluto_source_0.set_rfdc(True)
-        self.iio_pluto_source_0.set_bbdc(True)
-        self.iio_pluto_source_0.set_filter_params('Auto', '', 0, 0)
-        self.iio_pluto_sink_0 = iio.fmcomms2_sink_fc32('usb:0.2.5' if 'usb:0.2.5' else iio.get_pluto_uri(), [True, True], 32768, True)
-        self.iio_pluto_sink_0.set_len_tag_key('')
-        self.iio_pluto_sink_0.set_bandwidth(20000000)
-        self.iio_pluto_sink_0.set_frequency(int(850e6))
-        self.iio_pluto_sink_0.set_samplerate(int(samp_rate))
-        self.iio_pluto_sink_0.set_attenuation(0, 10)
-        self.iio_pluto_sink_0.set_filter_params('Auto', '', 0, 0)
-        self.fft_vxx_0 = fft.fft_vcc(512, True, window.blackmanharris(512), False, 1)
-        self.epy_block_0 = epy_block_0.blk(Fft_Len=512, Samp_Rate=300000, Previous_Freq=0.0)
         self.digital_symbol_sync_xx_0 = digital.symbol_sync_cc(
             digital.TED_ZERO_CROSSING,
             sps,
-            (0.00314159 * 2),
+            0.00628318,
             0.707107,
-            3,
+            1,
             1.5,
             1,
             digital.constellation_qpsk().base(),
-            digital.IR_PFB_MF,
+            digital.IR_PFB_NO_MF,
             16,
             rrc_taps)
         self.digital_diff_decoder_bb_0 = digital.diff_decoder_bb(4, digital.DIFF_DIFFERENTIAL)
@@ -235,18 +196,17 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
             log=False,
             truncate=False)
         self.digital_constellation_decoder_cb_0 = digital.constellation_decoder_cb(my_const_qpsk)
-        self.blocks_vector_source_x_0 = blocks.vector_source_b((1, 0, 1, 1, 0, 0, 1, 0), True, 1, [])
-        self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(2)
-        self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, 512)
+        self.blocks_wavfile_source_0 = blocks.wavfile_source('/Users/emmanuelkwakyenyantakyi/Desktop/sound.mp3', True)
+        self.blocks_unpacked_to_packed_xx_0 = blocks.unpacked_to_packed_bb(2, gr.GR_MSB_FIRST)
         self.blocks_short_to_float_0 = blocks.short_to_float(1, 1)
-        self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_short*1)
-        self.blocks_nlog10_ff_0 = blocks.nlog10_ff(10, 512, 0)
-        self.blocks_multiply_xx_0_0 = blocks.multiply_vcc(1)
-        self.blocks_multiply_xx_0 = blocks.multiply_vcc(1)
-        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_cc(0.5)
-        self.blocks_complex_to_mag_squared_0 = blocks.complex_to_mag_squared(512)
-        self.blocks_char_to_float_0 = blocks.char_to_float(1, 1)
-        self.blocks_argmax_xx_0 = blocks.argmax_fs(512)
+        self.blocks_short_to_char_0 = blocks.short_to_char(1)
+        self.blocks_multiply_const_vxx_1 = blocks.multiply_const_cc(1)
+        self.blocks_multiply_const_vxx_0_0 = blocks.multiply_const_ff((1/32767))
+        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(32767)
+        self.blocks_float_to_short_0 = blocks.float_to_short(1, 1)
+        self.blocks_delay_0 = blocks.delay(gr.sizeof_char*1, delay)
+        self.blocks_char_to_short_0 = blocks.char_to_short(1)
+        self.audio_sink_0 = audio.sink(int(audio_rate), '', True)
         self.analog_agc_xx_0 = analog.agc_cc((1e-4), 1.0, 1.0, 65536)
 
 
@@ -254,35 +214,27 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
         # Connections
         ##################################################
         self.connect((self.analog_agc_xx_0, 0), (self.digital_symbol_sync_xx_0, 0))
-        self.connect((self.blocks_argmax_xx_0, 1), (self.blocks_null_sink_0, 0))
-        self.connect((self.blocks_argmax_xx_0, 0), (self.blocks_short_to_float_0, 0))
-        self.connect((self.blocks_char_to_float_0, 0), (self.qtgui_time_sink_x_0, 0))
-        self.connect((self.blocks_complex_to_mag_squared_0, 0), (self.blocks_nlog10_ff_0, 0))
-        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.iio_pluto_sink_0, 0))
-        self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_multiply_xx_0_0, 0))
-        self.connect((self.blocks_multiply_xx_0, 0), (self.blocks_multiply_xx_0_0, 1))
-        self.connect((self.blocks_multiply_xx_0_0, 0), (self.rational_resampler_xxx_0, 0))
-        self.connect((self.blocks_nlog10_ff_0, 0), (self.blocks_argmax_xx_0, 0))
-        self.connect((self.blocks_short_to_float_0, 0), (self.epy_block_0, 0))
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.blocks_char_to_float_0, 0))
-        self.connect((self.blocks_vector_source_x_0, 0), (self.digital_constellation_modulator_0, 0))
+        self.connect((self.blocks_char_to_short_0, 0), (self.blocks_short_to_float_0, 0))
+        self.connect((self.blocks_delay_0, 0), (self.blocks_unpacked_to_packed_xx_0, 0))
+        self.connect((self.blocks_float_to_short_0, 0), (self.blocks_short_to_char_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_float_to_short_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0_0, 0), (self.audio_sink_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_1, 0), (self.analog_agc_xx_0, 0))
+        self.connect((self.blocks_short_to_char_0, 0), (self.digital_constellation_modulator_0, 0))
+        self.connect((self.blocks_short_to_float_0, 0), (self.blocks_multiply_const_vxx_0_0, 0))
+        self.connect((self.blocks_unpacked_to_packed_xx_0, 0), (self.blocks_char_to_short_0, 0))
+        self.connect((self.blocks_wavfile_source_0, 0), (self.blocks_multiply_const_vxx_0, 0))
+        self.connect((self.blocks_wavfile_source_0, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.digital_constellation_decoder_cb_0, 0), (self.digital_diff_decoder_bb_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_const_vxx_0, 0))
+        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_const_vxx_1, 0))
         self.connect((self.digital_costas_loop_cc_0, 0), (self.digital_constellation_decoder_cb_0, 0))
         self.connect((self.digital_costas_loop_cc_0, 0), (self.qtgui_const_sink_x_0, 0))
-        self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
+        self.connect((self.digital_diff_decoder_bb_0, 0), (self.blocks_delay_0, 0))
         self.connect((self.digital_symbol_sync_xx_0, 0), (self.digital_costas_loop_cc_0, 0))
-        self.connect((self.epy_block_0, 0), (self.freq_offset, 0))
-        self.connect((self.fft_vxx_0, 0), (self.blocks_complex_to_mag_squared_0, 0))
-        self.connect((self.iio_pluto_source_0, 0), (self.analog_agc_xx_0, 0))
-        self.connect((self.iio_pluto_source_0, 0), (self.blocks_multiply_xx_0, 0))
-        self.connect((self.iio_pluto_source_0, 0), (self.blocks_multiply_xx_0, 1))
-        self.connect((self.rational_resampler_xxx_0, 0), (self.blocks_stream_to_vector_0, 0))
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("gnuradio/flowgraphs", "qpsk_mod_demod_real_signal_5_3")
+        self.settings = Qt.QSettings("gnuradio/flowgraphs", "real_audio_signal_qpsk_modem_5")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -309,10 +261,6 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
-        self.iio_pluto_sink_0.set_samplerate(int(self.samp_rate))
-        self.iio_pluto_source_0.set_samplerate(int(self.samp_rate))
-        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.samp_rate, 210e3, 20e3, window.WIN_HAMMING, 6.76))
-        self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate/4)
 
     def get_rrc_taps(self):
         return self.rrc_taps
@@ -327,17 +275,24 @@ class qpsk_mod_demod_real_signal_5_3(gr.top_block, Qt.QWidget):
         self.my_const_qpsk = my_const_qpsk
         self.digital_constellation_decoder_cb_0.set_constellation(self.my_const_qpsk)
 
-    def get_computed_cfo(self):
-        return self.computed_cfo
+    def get_delay(self):
+        return self.delay
 
-    def set_computed_cfo(self, computed_cfo):
-        self.computed_cfo = computed_cfo
-        self.iio_pluto_source_0.set_frequency((int(850e6) - self.computed_cfo))
+    def set_delay(self, delay):
+        self.delay = delay
+        self.blocks_delay_0.set_dly(int(self.delay))
+
+    def get_audio_rate(self):
+        return self.audio_rate
+
+    def set_audio_rate(self, audio_rate):
+        self.audio_rate = audio_rate
+        self.qtgui_time_sink_x_0.set_samp_rate(self.audio_rate)
 
 
 
 
-def main(top_block_cls=qpsk_mod_demod_real_signal_5_3, options=None):
+def main(top_block_cls=real_audio_signal_qpsk_modem_5, options=None):
 
     qapp = Qt.QApplication(sys.argv)
 

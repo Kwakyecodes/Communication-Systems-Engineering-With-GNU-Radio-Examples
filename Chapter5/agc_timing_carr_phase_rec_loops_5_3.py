@@ -301,7 +301,7 @@ class agc_timing_carr_phase_rec_loops_5_3(gr.top_block, Qt.QWidget):
             2.6,
             1.5,
             1,
-            digital.constellation_bpsk().base(),
+            digital.constellation_qpsk().base(),
             digital.IR_PFB_MF,
             16,
             rrc_taps_2)
